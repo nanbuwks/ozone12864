@@ -1,5 +1,5 @@
 //#define ILI9341  // ILI9341 use PIN19
-#define JLX12864G
+#define JLX12864G  // 128 dot x 64 dot B/W with backlight LCD
 
 #include <WiFi.h>
 #include <WiFiClient.h>
@@ -12,9 +12,15 @@
 #define DHTTYPE DHT11
 DHTesp dht;
 
+
+#define sensor1 A3  // SENSOR_VN  ... Vgas
+#define sensor2 A0  // SENSOR_VP  ... Vref
 #define PPIN 27
-#define SWDETECT_PIN 25
-#define POWERDOWN_PIN 4
+#define VIN_MONITOR_PIN A6   // GPIO34 1/2 divider voltage
+#define BATT_MONITOR_PIN A7  // GPIO35 1/2 divider voltage
+#define SWDETECT_PIN 25  // 
+#define POWERDOWN_PIN 4  // Lo -> PowerDown
+#define WiFiSetPin 14 // SW2 push with boot : AP mode on
 
 
 #include "SPI.h"
@@ -34,8 +40,7 @@ DHTesp dht;
 #define TFT_RST 16
 #define TFT_DC 17
 #define TFT_CS 5
-#define TFT_BACKLIGHT_PIN 15 
-
+#define TFT_BACKLIGHT_PIN 15
 #define SLEEPTIME 300 
 
 #define WAKEUP_TOUCH_THRESHOLD 50 // 
@@ -51,7 +56,6 @@ struct LABEL {
   GFXfont font;
 };
 
-const int WiFiSetPin = 15; // SW3  push with boot : AP mode on
 const char* settings = "/ozon_settings.txt";
 // AP mode WiFi Setting
 const char* defaultWifiMode = "APMode";
@@ -260,9 +264,149 @@ const char Font[192][5] =
   { 0x42, 0x22, 0x12, 0x2a, 0x46 }, // su  0xBD
   { 0x02, 0x3f, 0x42, 0x4a, 0x46 }, // se  0xBE
   { 0x06, 0x48, 0x40, 0x20, 0x1e } // so  0xBF
+
+  
 };
 
+
+
+
 char v_buf[128][6];
+
+
+unsigned char Icon1616BatteryFull[32] = {
+        0b00011110,0b00000000,
+        0b11111111,0b11000000,
+        0b10000000,0b01000000,
+        0b10111111,0b01000000,
+        0b10111111,0b01000000,
+        0b10000000,0b01000000,
+        0b10111111,0b01000000,
+        0b10111111,0b01000000,
+        0b10000000,0b01000000,
+        0b10111111,0b01000000,
+        0b10111111,0b01000000,
+        0b10000000,0b01000000,
+        0b10111111,0b01000000,
+        0b10111111,0b01000000,
+        0b10000000,0b01000000,
+        0b11111111,0b11000000,
+        };
+unsigned char Icon1616Battery3[32] = {
+
+        0b00011110,0b00000000,
+        0b11111111,0b11000000,
+        0b10000000,0b01000000,
+        0b10000000,0b01000000,
+        0b10000000,0b01000000,
+        0b10000000,0b01000000,
+        0b10111111,0b01000000,
+        0b10111111,0b01000000,
+        0b10000000,0b01000000,
+        0b10111111,0b01000000,
+        0b10111111,0b01000000,
+        0b10000000,0b01000000,
+        0b10111111,0b01000000,
+        0b10111111,0b01000000,
+        0b10000000,0b01000000,
+        0b11111111,0b11000000,
+        };
+unsigned char Icon1616Battery2[32] = {
+
+        0b00011110,0b00000000,
+        0b11111111,0b11000000,
+        0b10000000,0b01000000,
+        0b10000000,0b01000000,
+        0b10000000,0b01000000,
+        0b10000000,0b01000000,
+        0b10000000,0b01000000,
+        0b10000000,0b01000000,
+        0b10000000,0b01000000,
+        0b10111111,0b01000000,
+        0b10111111,0b01000000,
+        0b10000000,0b01000000,
+        0b10111111,0b01000000,
+        0b10111111,0b01000000,
+        0b10000000,0b01000000,
+        0b11111111,0b11000000,
+        };
+unsigned char Icon1616Battery1[32] = {
+
+        0b00011110,0b00000000,
+        0b11111111,0b11000000,
+        0b10000000,0b01000000,
+        0b10000000,0b01000000,
+        0b10000000,0b01000000,
+        0b10000000,0b01000000,
+        0b10000000,0b01000000,
+        0b10000000,0b01000000,
+        0b10000000,0b01000000,
+        0b10000000,0b01000000,
+        0b10000000,0b01000000,
+        0b10000000,0b01000000,
+        0b10111111,0b01000000,
+        0b10111111,0b01000000,
+        0b10000000,0b01000000,
+        0b11111111,0b11000000,
+        };
+unsigned char Icon1616BatteryEmpty[32] = {
+
+        0b00011110,0b00000000,
+        0b11111111,0b11000000,
+        0b10000000,0b01000000,
+        0b10000000,0b01000000,
+        0b10000000,0b01000000,
+        0b10000000,0b01000000,
+        0b10000000,0b01000000,
+        0b10000000,0b01000000,
+        0b10000000,0b01000000,
+        0b10000000,0b01000000,
+        0b10000000,0b01000000,
+        0b10000000,0b01000000,
+        0b10000000,0b01000000,
+        0b10000000,0b01000000,
+        0b10000000,0b01000000,
+        0b11111111,0b11000000,
+        };
+unsigned char Icon1616ACIN[32] = {
+        0b00100010,0b00000000,
+        0b00100010,0b00000000,
+        0b00100010,0b00000000,
+        0b11111111,0b10000000,
+        0b11111111,0b10000000,
+        0b11111111,0b10000000,
+        0b11111111,0b10000000,
+        0b11111111,0b10000000,
+        0b11111111,0b10000000,
+        0b11111111,0b10000000,
+        0b11111111,0b10000000,
+        0b00011100,0b00000000,
+        0b00011100,0b00000000,
+        0b00001000,0b00000000,
+        0b00001000,0b00000000,
+        0b00001111,0b10000000,
+        };
+unsigned char Icon1616WiFi[32] = {
+        0b00000000,0b00000000,
+        0b00001111,0b10000000,
+        0b00111000,0b11100000,
+        0b01100000,0b00110000,
+        0b11000000,0b00011000,
+        0b10001111,0b10001000,
+        0b00111000,0b11100000,
+        0b01100000,0b00110000,
+        0b01000000,0b00010000,
+        0b00001111,0b10000000,
+        0b00011000,0b11000000,
+        0b00000000,0b00000000,
+        0b00000111,0b00000000,
+        0b00001111,0b10000000,
+        0b00001111,0b10000000,
+        0b00000111,0b00000000,
+        };
+
+                                                 
+
 
 SPISettings spiSettings = SPISettings(SPI_CLK, SPI_MSBFIRST, SPI_MODE1);
 
@@ -368,6 +512,43 @@ void LCD_PSET(int x_data, int y_data, int cl)
 }
 
 //----------------------------------------------------
+//  Patternの描画
+//  int x_data  X positon   0 -> 128
+//  int y_data  Y positon   0 -> 48
+//  char c_data Data
+//  int cl      color 0: white  1:black
+//----------------------------------------------------
+void LCD_Pattern(int x_data, int y_data, unsigned char *Pattern_data, int cl, int scale)
+{
+    int d,y,x1,x2;
+    char s;
+
+    for(y=0; y<16; y++)
+    {
+        for(x1=0; x1<2; x1++)
+        {
+            s=0b10000000;
+            for(x2=0; x2<8; x2++)
+            {
+                d=0;
+                if(Pattern_data[y*2+x1] & s) d=1;
+                if(cl == 1)
+                {
+                    if(d) d=0;
+                    else d=1;
+                }
+                for ( int dx=0; dx<scale;dx++) {
+                    for ( int dy=0; dy<scale;dy++) {
+                        LCD_PSET(x_data+(x1*8+x2)*scale+dx,  y_data + y*scale+dy  ,d);
+                    }
+                }
+                s >>= 1;
+            }
+        }
+    }
+}
+
+//----------------------------------------------------
 //  Fontの描画
 //  int x_data  X positon   0 -> 128
 //  int y_data  Y positon   0 -> 48
@@ -440,6 +621,8 @@ LABEL notifyTitle = {0, 80,319,40,ILI9341_BLACK ,ILI9341_WHITE,"HANDY CLEAN",1,F
 LABEL notifyTemp  = {10,200,100,40,ILI9341_YELLOW,ILI9341_BLACK ,"29 C",1,FreeSansBold24pt7b};
 LABEL notifyCel  = {70,270,0,40,ILI9341_YELLOW,ILI9341_BLACK ,"o",1,FreeSansBold12pt7b};
 LABEL notifyHemi  = {130,280,100,40,ILI9341_YELLOW,ILI9341_BLACK ,"78%",1,FreeSansBold24pt7b};
+LABEL notifyWiFiMode  = {130,280,100,40,ILI9341_YELLOW,ILI9341_BLACK ,"78%",1,FreeSansBold24pt7b};
+
 
 LABEL timetitle  = {  0,  0,80,50,ILI9341_BLACK,ILI9341_WHITE, "TIME:",1,FreeSansBold12pt7b};
 // LABEL timeRemain = {45,115,140,100,ILI9341_BLACK,ILI9341_WHITE,    "30",2,DSEG7Classic_Regular30pt7b};
@@ -466,6 +649,7 @@ LABEL scanLabels[4]={ scannode1,scannode2,scannode3,scannode4};
 float ppms[100];
 float ppms10[10];
 int counter=0;
+int sleepcounter=0;
 int samplenum=20;
 void labelText(LABEL label) {
   unsigned long start = micros();
@@ -538,9 +722,6 @@ void sensorSet() {
   String wifiMode = "clientMode";
   String qrcodedata = server.arg("qrcodedata");
   int index = split(qrcodedata, '-', cmds);
-
-  int sensor1 = A5;  // GPIO33  ... Vgas
-  int sensor2 = A6;  // GPIO34  ... Vref
   
   int offset=0;
   for ( int i = 0; i<5;i++){
@@ -563,7 +744,7 @@ void sensorSet() {
   // --------------------24 H wait message display out
 #ifdef JLX12864G
 // for JLX12864G
-    LCD_Print_Str(5,49,"AGEING...",1,2);
+//    LCD_Print_Str(5,49,"AGEING...",1,2);
 #endif
 
   
@@ -588,6 +769,8 @@ void handleNotFound(){
 }
 
 void setup(void){
+
+  
   Serial.begin(115200);
   delay(1000);
   Serial.println("");
@@ -600,7 +783,21 @@ void setup(void){
 
   pinMode(TFT_BACKLIGHT_PIN,OUTPUT);
   digitalWrite(TFT_BACKLIGHT_PIN,HIGH); // ON  
-
+#ifdef ILI9341
+  pinMode(TFT_BACKLIGHT_PIN,OUTPUT);
+  digitalWrite(TFT_BACKLIGHT_PIN,HIGH);
+  tft.begin();
+  tft.setRotation(1);
+  tft.fillScreen(ILI9341_WHITE);
+  notifyTitle.text="OZON ppm";
+  labelText(notifyTitle);
+#endif
+#ifdef JLX12864G
+    SPI.begin();
+    Init_LCD();
+    LCD_CLS(0);
+#endif
+  
   WiFiSet=digitalRead(WiFiSetPin);
 //   init filesystem
   bool res = SPIFFS.begin(true); // FORMAT_SPIFFS_IF_FAILED
@@ -650,7 +847,9 @@ void setup(void){
     Serial.println("WiFiMode is ON");
     //----------WiFi access point---------
     Serial.println();
-    Serial.print("Configuring access point...");
+    LCD_Pattern(0,0,Icon1616WiFi, 0, 1);
+
+
     ssid=defaultSsid;
     essKey=defaultEssKey;
     WiFi.softAP(ssid.c_str(), essKey.c_str());
@@ -664,20 +863,6 @@ void setup(void){
     server.begin();
     Serial.println("HTTP server started");  
   }
-#ifdef ILI9341
-  pinMode(TFT_BACKLIGHT_PIN,OUTPUT);
-  digitalWrite(TFT_BACKLIGHT_PIN,HIGH);
-  tft.begin();
-  tft.setRotation(1);
-  tft.fillScreen(ILI9341_WHITE);
-  notifyTitle.text="OZON ppm";
-  labelText(notifyTitle);
-#endif
-#ifdef JLX12864G
-    SPI.begin();
-    Init_LCD();
-    LCD_CLS(0);
-#endif
 
   pinMode(SWDETECT_PIN,INPUT_PULLDOWN);
   pinMode(POWERDOWN_PIN,INPUT);
@@ -723,6 +908,9 @@ void setup(void){
 //   Serial.print("batt=");
   Serial.print("battValue");
   Serial.print("  ");
+//   Serial.print("vin=");
+  Serial.print("vinValue");
+  Serial.print("  ");
 //   Serial.print("temp=");
   Serial.print("oldtemp");
   Serial.print("  " );
@@ -737,16 +925,11 @@ void loop(void){
   // Handle incoming connections 
    server.handleClient();
     
-  //int sensor1 = A5;  // GPIO33  ... Vgas
-  //int sensor2 = A6;  // GPIO34  ... Vref
-  //int batt = A7;
-  int sensor1 = A3;  // SENSOR_VN  ... Vgas
-  int sensor2 = A0;  // SENSOR_VP  ... Vref
-  int batt = A7;
   
   int gasValue = analogRead(sensor1);
   int refValue = analogRead(sensor2);
-  int battValue = analogRead(batt);
+  int vinValue = analogRead(VIN_MONITOR_PIN);
+  int battValue = analogRead(BATT_MONITOR_PIN);
 //  static int 1=0;
   if ( 0 == counter % 10 ) {
   TempAndHumidity newValues = dht.getTempAndHumidity();
@@ -863,6 +1046,9 @@ float multiple =  0.81/(Sensitivity*510*1000/1000/1000);
 //   Serial.print("batt=");
   Serial.print(battValue);
   Serial.print("  ");
+//   Serial.print("vin=");
+  Serial.print(vinValue);
+  Serial.print("  ");
 //   Serial.print("temp=");
   Serial.print(oldtemp);
   Serial.print("  " );
@@ -898,7 +1084,7 @@ float multiple =  0.81/(Sensitivity*510*1000/1000/1000);
     { 
       LCD_Print_Str(5,49,"",1,2);
     } else {
-      LCD_Print_Str(5,49,"AGEING...",1,2);      
+//      LCD_Print_Str(5,49,"AGEING...",1,2);      
     }
 
     
@@ -913,7 +1099,23 @@ float multiple =  0.81/(Sensitivity*510*1000/1000/1000);
       
   }
 
-  if ( SLEEPTIME==counter){
+  // vinValue
+  if  ( 2300 < vinValue ){
+    sleepcounter=0;
+    LCD_Pattern(111,0,Icon1616ACIN, 0, 1);
+  } else if ( 1500 < battValue ){
+    LCD_Pattern(111,0,Icon1616BatteryFull, 0, 1);
+  } else if ( 1300 < battValue ){
+    LCD_Pattern(111,0,Icon1616Battery3, 0, 1);
+  } else if ( 1200 < battValue ){
+    LCD_Pattern(111,0,Icon1616Battery2, 0, 1);
+  } else if ( 1100 < battValue ){
+    LCD_Pattern(111,0,Icon1616Battery1, 0, 1);
+  } else if ( 1000 < battValue ){
+    LCD_Pattern(111,0,Icon1616BatteryEmpty, 0, 1);
+  }
+//  static int 1=0;
+  if ( SLEEPTIME==sleepcounter){
     Serial.print("timeout. Powerdown...");
     digitalWrite(TFT_BACKLIGHT_PIN,LOW); // OFF 
     delay(100);
@@ -922,10 +1124,10 @@ float multiple =  0.81/(Sensitivity*510*1000/1000/1000);
     delay(1000);
       
   }
-
+  
   delay(500);
  
   
   counter++;
-
+  sleepcounter++;
 }
