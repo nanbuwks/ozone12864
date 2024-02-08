@@ -156,18 +156,23 @@ LABEL unitPPM = {90, 20, 38, 30, FGCOLOR, BGCOLOR, "ppm", 'L', 1, FreeSansBold9p
   JLABEL md124 = {50, 50, 80, 14,  TFT_WHITE, TFT_BLACK, "RETURN", 1, lgfxJapanGothicP_8};
 */
 
-LABEL md120 = {50, 10, 60, 8,  TFT_WHITE, TFT_BLACK, "         ", 'C' , 1, DejaVu9};
-LABEL md121 = {50, 21, 60, 8,  TFT_WHITE, TFT_BLACK, "         ", 'C' , 1, DejaVu9};
-LABEL md122 = {20, 32, 90, 8,  TFT_WHITE, TFT_BLACK, "MONITOR", 'C' , 1, DejaVu9};
-LABEL md123 = {20, 43, 90, 8,  TFT_WHITE, TFT_BLACK, "GRAPH", 'C' , 1, DejaVu9};
-LABEL md124 = {20, 54, 90, 8,  TFT_WHITE, TFT_BLACK, "RETURN", 'C', 1, DejaVu9};
+LABEL md120 = {50, 8, 60, 7,  TFT_WHITE, TFT_BLACK, "         ", 'C' , 1, TomThumb};
+LABEL md121 = {50, 16, 60, 7,  TFT_WHITE, TFT_BLACK, "         ", 'C' , 1, TomThumb};
+LABEL md122 = {50, 24, 60, 7,  TFT_WHITE, TFT_BLACK, "         ", 'C' , 1, TomThumb};
+LABEL md123 = {50, 32, 60, 7,  TFT_WHITE, TFT_BLACK, "         ", 'C' , 1, TomThumb};
+LABEL md124 = {20, 40, 90, 7,  TFT_WHITE, TFT_BLACK, "MONITOR", 'C' , 1, TomThumb};
+LABEL md125 = {20, 48, 90, 7,  TFT_WHITE, TFT_BLACK, "GRAPH", 'C' , 1, TomThumb};
+LABEL md126 = {20, 56, 90, 7,  TFT_WHITE, TFT_BLACK, "RETURN", 'C', 1, TomThumb};
 
-LABEL md110 = {10, 11, 40, 8,  TFT_BLACK, TFT_WHITE, "OFFTIMER", 'R' , 1, TomThumb};
-LABEL md111 = {10, 22, 40, 8,  TFT_BLACK, TFT_WHITE, "CONTROL", 'R' , 1, TomThumb};
-// LABEL md112 = {20, 42, 60, 10,  TFT_BLACK, TFT_WHITE, "MONITOR", 'C' , 1, DejaVu9};
-// LABEL md113 = {20, 53, 60, 10,  TFT_BLACK, TFT_WHITE, "RETURN", 'C', 1, DejaVu9};
+LABEL md110 = {10, 9, 40, 7,  TFT_BLACK, TFT_WHITE, "OFFTIMER", 'R' , 1, TomThumb};
+LABEL md111 = {10, 17, 40, 7,  TFT_BLACK, TFT_WHITE, "CONTROL", 'R' , 1, TomThumb};
+LABEL md112 = {10, 25, 60, 7,  TFT_BLACK, TFT_WHITE, "BACKLIGHT", 'R' , 1, TomThumb};
+LABEL md113 = {10, 33, 60, 7,  TFT_BLACK, TFT_WHITE, "BATT MODE", 'R', 1, TomThumb};
 
-LABEL maintenanceLabels1[5] = {  md120, md121, md122, md123 , md124};
+#define MAINTENANCELABELSNUM 7
+
+LABEL maintenanceLabels1[ MAINTENANCELABELSNUM] = {  md120, md121, md122, md123 , md124,md125,md126};
+
 
 LABEL monitorPPMsection       = {0, 0, 128,  1,  TFT_BLACK, TFT_WHITE, "", 'R' , 1, TomThumb};
 LABEL monitorPPMavg           = {30 , 8, 30, 8,  TFT_BLACK, TFT_WHITE, "      ", 'R' , 1, TomThumb};
@@ -226,10 +231,10 @@ int sleeptimes[SLEEPTIMENUM] = {
   1, 3, 5, 10, 30, 60, -1,
 };
 
-#define OUTCONTROLSNUM 24
+#define OUTCONTROLSNUM 25
 int outcontrolsvector = 9; // means 5 minutes
-int outcontrols[OUTCONTROLSNUM] = {
-  1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 30, 40, 50, 9999
+float outcontrols[OUTCONTROLSNUM] = {
+  0.5,1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 30, 40, 50, 9999
 };
 
 
@@ -640,10 +645,10 @@ int maintenanceSelect1() {
   
   labelText(md110);
   labelText(md111);
+  labelText(md112);
+  labelText(md113);
   Serial.println("maintenanceSelect1");
   // delay(10000);
-  //  labelText(md112);
-  //  labelText(md113);
   if ( -1 == sleeptimes[sleeptimesvector] ) {
     maintenanceLabels1[selected].text = "always on";
   } else {
@@ -668,10 +673,10 @@ int maintenanceSelect1() {
       Serial.println(selectcounter);
       upkeypushed = 0;
       downkeypushed = 0;
-      selected = (( selectcounter % 5) + 5 ) % 5; // negative modulo
+      selected = (( selectcounter % MAINTENANCELABELSNUM) + MAINTENANCELABELSNUM ) % MAINTENANCELABELSNUM; // negative modulo
 
       Serial.print(selectcounter);    Serial.print(" ");    Serial.print(selected);    Serial.println(" ");
-      for ( int i = 0; i < 5; i++ ) {
+      for ( int i = 0; i < MAINTENANCELABELSNUM; i++ ) {
         Serial.print("selectcounter=");
         Serial.println(i);
         if ( i == selected) {
@@ -713,16 +718,29 @@ int maintenanceSelect1() {
           selectLabelText(maintenanceLabels1[selected]);
           break;
         case 2:
+          outcontrolsvector++;
+          if ( OUTCONTROLSNUM <= outcontrolsvector )
+            outcontrolsvector = 0;
+          PtargetPpm = outcontrols[outcontrolsvector];
+          if ( 9999 == outcontrols[outcontrolsvector] ) {
+            maintenanceLabels1[selected].text = "always on";
+          } else {
+            sprintf(charBuf , "%d ppm" , outcontrols[outcontrolsvector] );
+            maintenanceLabels1[selected].text = charBuf;
+          }
+          selectLabelText(maintenanceLabels1[selected]);
+          break;
+        case 3:
           selectLabelText(maintenanceLabels1[selected]);
           mode = "monitordisp";
           return (0);
           break;
-        case 3:
+        case 4:
           selectLabelText(maintenanceLabels1[selected]);
           mode = "graph";
           return (0);
           break;
-        case 4:
+        case 5:
           selectLabelText(maintenanceLabels1[selected]);
           mode = "measure";
           return (0);
