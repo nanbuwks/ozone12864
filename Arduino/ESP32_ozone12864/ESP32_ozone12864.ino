@@ -38,7 +38,8 @@ DHTesp dht;
 #define SETKEY 14
 
 
-int sleeptime = 300;
+int timeOfSleep;
+int timeOfBklight;
 
 #include "SPI.h"
 
@@ -88,7 +89,7 @@ String channel;
 String storeSensorModeStr;
 String storeStrSensorSensitivity;
 String storeStrSensorZeroVOffset;
-String storeStrSelectSleepTimesVector;
+String storeStrSelecttimeOfSleepsVector;
 String storeStrSelectBklightTimesVector;
 String storeStrSelectOutcontrolsVector;
 String storeStrSelectAlermPpmVector;
@@ -236,9 +237,9 @@ LABEL graphref              = {100, 56, 25, 5,  TFT_BLACK, TFT_WHITE, "      ", 
 LABEL graphreftitle         = {100, 48, 25, 5,  TFT_WHITE, TFT_BLACK, "ref", 'C' , 1, TomThumb};
 
 
-#define SELECTSLEEPTIMENUM 7
-int selectSleepTimesVector = 2; // means 5 minutes
-int selectSleepTimes[SELECTSLEEPTIMENUM] = {
+#define SELECTtimeOfSleepNUM 7
+int selecttimeOfSleepsVector = 2; // means 5 minutes
+int selecttimeOfSleeps[SELECTtimeOfSleepNUM] = {
   1, 3, 5, 10, 30, 60, -1,
 };
 
@@ -676,17 +677,17 @@ int maintenanceSelect1() {
   labelText(md113);   // title of "CONTROL"
   Serial.println("maintenanceSelect1");
   // ボタンとボタン上の表示を初期描画
-  if ( -1 == selectSleepTimes[selectSleepTimesVector] ) {
+  if ( -1 == selecttimeOfSleeps[selecttimeOfSleepsVector] ) {
     maintenanceLabels1[0].text = "always on";
   } else {
-    sprintf(charBuf , "%d min pff" , selectSleepTimes[selectSleepTimesVector] );
+    sprintf(charBuf , "%d min pff" , selecttimeOfSleeps[selecttimeOfSleepsVector] );
     maintenanceLabels1[0].text = charBuf;
   }
 
   if ( -1 == selectBklightTimes[selectBklightTimesVector] ) {
     maintenanceLabels1[1].text = "always on";
   } else {
-    sprintf(charBuf , "%d min pff" , selectSleepTimes[selectBklightTimesVector] );
+    sprintf(charBuf , "%d min pff" , selecttimeOfSleeps[selectBklightTimesVector] );
     maintenanceLabels1[1].text = charBuf;
   }
 
@@ -738,14 +739,14 @@ int maintenanceSelect1() {
       setkeypushed = 0;
       switch (selected) {
         case 0:  //OFFTIMER
-          selectSleepTimesVector++;
-          if ( SELECTSLEEPTIMENUM <= selectSleepTimesVector )
-            selectSleepTimesVector = 0;
-          sleeptime = selectSleepTimes[selectSleepTimesVector] * 60;
-          if ( -1 == selectSleepTimes[selectSleepTimesVector] ) {
+          selecttimeOfSleepsVector++;
+          if ( SELECTtimeOfSleepNUM <= selecttimeOfSleepsVector )
+            selecttimeOfSleepsVector = 0;
+          timeOfSleep = selecttimeOfSleeps[selecttimeOfSleepsVector] * 60;
+          if ( -1 == selecttimeOfSleeps[selecttimeOfSleepsVector] ) {
             maintenanceLabels1[selected].text = "always on";
           } else {
-            sprintf(charBuf , "%d min off" , selectSleepTimes[selectSleepTimesVector] );
+            sprintf(charBuf , "%d min off" , selecttimeOfSleeps[selecttimeOfSleepsVector] );
             maintenanceLabels1[selected].text = charBuf;
           }
           selectLabelText(maintenanceLabels1[selected]);
@@ -754,7 +755,7 @@ int maintenanceSelect1() {
           selectBklightTimesVector++;
           if ( SELECTBKLIGHTTIMENUM <= selectBklightTimesVector )
             selectBklightTimesVector = 0;
-          sleeptime = selectBklightTimes[selectBklightTimesVector] * 60;
+          timeOfBklight = selectBklightTimes[selectBklightTimesVector] * 60;
           if ( -1 == selectBklightTimes[selectBklightTimesVector] ) {
             maintenanceLabels1[selected].text = "always on";
           } else {
@@ -913,11 +914,11 @@ void storeData() {
     File f = SPIFFS.open(settings, "w");
     f.println(storeStrSensorSensitivity);
     f.println(storeStrSensorZeroVOffset);
-    storeStrSelectSleepTimesVector =  String(  selectSleepTimesVector);
+    storeStrSelecttimeOfSleepsVector =  String(  selecttimeOfSleepsVector);
     storeStrSelectBklightTimesVector = String( selectBklightTimesVector);
     storeStrSelectOutcontrolsVector = String(  selectOutcontrolsVector);
     storeStrSelectAlermPpmVector = String(selectAlermPpmVector);
-    f.println(storeStrSelectSleepTimesVector);
+    f.println(storeStrSelecttimeOfSleepsVector);
     f.println(storeStrSelectBklightTimesVector);
     f.println(storeStrSelectOutcontrolsVector);
     f.println(storeStrSelectAlermPpmVector);
@@ -991,7 +992,7 @@ void setup(void) {
 
   storeStrSensorSensitivity = fp.readStringUntil('\n');
   storeStrSensorZeroVOffset = fp.readStringUntil('\n');
-  storeStrSelectSleepTimesVector = fp.readStringUntil('\n');;
+  storeStrSelecttimeOfSleepsVector = fp.readStringUntil('\n');;
   storeStrSelectBklightTimesVector = fp.readStringUntil('\n');;
   storeStrSelectOutcontrolsVector = fp.readStringUntil('\n');;
   storeStrSelectAlermPpmVector = fp.readStringUntil('\n');;
@@ -1003,13 +1004,13 @@ void setup(void) {
   fp.close();
   storeStrSensorSensitivity.trim();
   storeStrSensorZeroVOffset.trim();
-  storeStrSelectSleepTimesVector.trim();
+  storeStrSelecttimeOfSleepsVector.trim();
   storeStrSelectBklightTimesVector.trim();
   storeStrSelectOutcontrolsVector.trim();
   storeStrSelectAlermPpmVector.trim();
   storeSensorModeStr.trim();
   if ( 0 == storeSensorModeStr.compareTo("ozone") ) {
-    selectSleepTimesVector =  (storeStrSelectSleepTimesVector.toInt());
+    selecttimeOfSleepsVector =  (storeStrSelecttimeOfSleepsVector.toInt());
     selectBklightTimesVector =  (storeStrSelectBklightTimesVector.toInt());
     selectOutcontrolsVector =  (storeStrSelectOutcontrolsVector.toInt());
     selectAlermPpmVector =  (storeStrSelectAlermPpmVector.toInt());
@@ -1023,6 +1024,9 @@ void setup(void) {
     essKey = defaultEssKey;
     storeData();
   }
+  timeOfSleep = selecttimeOfSleeps[selecttimeOfSleepsVector] * 60;
+  timeOfBklight = selectBklightTimes[selectBklightTimesVector] * 60;
+
   if ( 1 == WiFiSet ) {
     Serial.println("WiFiMode is ON");
     //----------WiFi access point---------
@@ -1097,7 +1101,7 @@ void setup(void) {
   Serial.println("interrupt seted");
 
   // sleep timer init
-  sleeptime = selectSleepTimes[selectSleepTimesVector] * 60;
+  timeOfSleep = selecttimeOfSleeps[selecttimeOfSleepsVector] * 60;
   // P control value init
   PtargetPpm = selectOutcontrols[selectOutcontrolsVector];
 
@@ -1494,7 +1498,7 @@ void task2(void *pvParameters) {
     }
 
     //  static int 1=0;
-    if ( sleeptime == sleepcounter) {
+    if ( timeOfSleep == sleepcounter) {
       Serial.print("timeout. Powerdown...");
       digitalWrite(TFT_BACKLIGHT_PIN, LOW); // OFF
       delay(100);
@@ -1502,7 +1506,15 @@ void task2(void *pvParameters) {
       digitalWrite(POWERDOWN_PIN, LOW);
       delay(1000);
     }
-    delay(500);
+    
+
+        //  static int 1=0;
+    if ( timeOfBklight == sleepcounter) {
+      Serial.print("backlight off...");
+      digitalWrite(TFT_BACKLIGHT_PIN, LOW); // OFF
+    }
+
+delay(500);
 
     counter++;
     sleepcounter++;
