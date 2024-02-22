@@ -85,18 +85,29 @@ String wifiMode;
 String ssid;
 String essKey;
 String channel;
-String sensorModeStr;
-String sensorSensitivityStr;
-String sensorZeroVOffsetStr;
+String storeSensorModeStr;
+String storeStrSensorSensitivity;
+String storeStrSensorZeroVOffset;
+String storeStrSelectSleepTimesVector;
+String storeStrSelectBklightTimesVector;
+String storeStrSelectOutcontrolsVector;
+String storeStrSelectAlermPpmVector;
+
 int   sensorZeroVOffset;
 float sensorSensitivity;
+
+float calibLoPpm = 0; // ppm
+float calibHiPpm = 10; // ppm
+float calibLoValue = 0; // GasValue - RefValue
+float calibHiValue = 0; // GasValue - RefValue
 
 //  P control
 
 float PtargetPpm = 10.0;
 float PcontrolArea = 0.5; // target ± 50%
 String Pstatus = "";
-String mode = "measure" ; // measure,setup,monitordisp
+String modeDisp = "measure" ; // measure,setup,monitordisp
+String modeSerial = "measure" ; // measure,shell
 
 int vinValue, battValue;
 int gasValue, refValue;
@@ -171,7 +182,7 @@ LABEL md113 = {10, 33, 40, 7,  TFT_BLACK, TFT_WHITE, "CONTROL", 'R', 1, TomThumb
 
 #define MAINTENANCELABELSNUM 7
 
-LABEL maintenanceLabels1[ MAINTENANCELABELSNUM] = {  md120, md121, md122, md123 , md124,md125,md126};
+LABEL maintenanceLabels1[ MAINTENANCELABELSNUM] = {  md120, md121, md122, md123 , md124, md125, md126};
 
 
 LABEL monitorPPMsection       = {0, 0, 128,  1,  TFT_BLACK, TFT_WHITE, "", 'R' , 1, TomThumb};
@@ -225,18 +236,31 @@ LABEL graphref              = {100, 56, 25, 5,  TFT_BLACK, TFT_WHITE, "      ", 
 LABEL graphreftitle         = {100, 48, 25, 5,  TFT_WHITE, TFT_BLACK, "ref", 'C' , 1, TomThumb};
 
 
-#define SLEEPTIMENUM 7
-int sleeptimesvector = 2; // means 5 minutes
-int sleeptimes[SLEEPTIMENUM] = {
+#define SELECTSLEEPTIMENUM 7
+int selectSleepTimesVector = 2; // means 5 minutes
+int selectSleepTimes[SELECTSLEEPTIMENUM] = {
   1, 3, 5, 10, 30, 60, -1,
 };
 
-#define OUTCONTROLSNUM 25
-int outcontrolsvector = 9; // means 5 minutes
-float outcontrols[OUTCONTROLSNUM] = {
-  0.5,1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 30, 40, 50, 9999
+#define SELECTBKLIGHTTIMENUM 7
+int selectBklightTimesVector = 2; // means 5 minutes
+int selectBklightTimes[SELECTBKLIGHTTIMENUM] = {
+  1, 3, 5, 10, 30, 60, -1,
 };
 
+
+#define SELECTOUTCONTROLSNUM 25
+int selectOutcontrolsVector = 10; // means 10 ppm
+float selectOutcontrols[SELECTOUTCONTROLSNUM] = {
+  0.5, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 30, 40, 50, 9999
+};
+
+
+#define SELECTALERMPPMNUM 25
+int selectAlermPpmVector = 10; // means 10 ppm
+float selectAlermPpms[SELECTALERMPPMNUM] = {
+  0.5, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 30, 40, 50, 9999
+};
 
 // LABEL timeLabels[3]={ timeRemain,timeRUN,timeRETURN};
 //LABEL setLabels[2]={ setCONNECT,setRETURN};
@@ -576,12 +600,14 @@ void labelText(LABEL label) {
   display.setTextSize(label.scale);
   w =  display.textWidth( label.text);
   h =  display.fontHeight();
-  Serial.println(label.x1);
-  Serial.println(label.y1);
-  Serial.println(label.xlength);
-  Serial.println(label.ylength);
-  Serial.println(label.bgcolor);
-  Serial.println();
+  /*
+    Serial.println(label.x1);
+    Serial.println(label.y1);
+    Serial.println(label.xlength);
+    Serial.println(label.ylength);
+    Serial.println(label.bgcolor);
+    Serial.println();
+  */
   display.fillRect(label.x1, label.y1, label.xlength, label.ylength, label.bgcolor);
   int xtextbase, ytextbase;
 
@@ -634,34 +660,54 @@ int maintenanceSelect1() {
   int selected;
 
   char charBuf[10];
+  char dtostrfBuf[10];
 
   unsigned int selectcounter = 0;
   //  while ( 0 == exitflag )
   selectcounter = 1;
   // ダミーでキーをプッシュして最初の描画をさせる
   upkeypushed = 1;
-//  display.fillScreen(TFT_BLACK);
+  //  display.fillScreen(TFT_BLACK);
   display.fillScreen(TFT_WHITE);
-  
-  labelText(md110);
-  labelText(md111);
-  labelText(md112);
-  labelText(md113);
+
+  labelText(md110);   // title of "BATTERY POWER"
+  labelText(md111);   // title of "BACKLIGHT OFF"
+  labelText(md112);   // title of "ALERM"
+  labelText(md113);   // title of "CONTROL"
   Serial.println("maintenanceSelect1");
-  // delay(10000);
-  if ( -1 == sleeptimes[sleeptimesvector] ) {
-    maintenanceLabels1[selected].text = "always on";
+  // ボタンとボタン上の表示を初期描画
+  if ( -1 == selectSleepTimes[selectSleepTimesVector] ) {
+    maintenanceLabels1[0].text = "always on";
   } else {
-    sprintf(charBuf , "%d" , sleeptimes[sleeptimesvector] );
-    maintenanceLabels1[selected].text = charBuf;
+    sprintf(charBuf , "%d min pff" , selectSleepTimes[selectSleepTimesVector] );
+    maintenanceLabels1[0].text = charBuf;
   }
 
-  if ( 9999 == outcontrols[outcontrolsvector] ) {
-    maintenanceLabels1[selected].text = "always on";
+  if ( -1 == selectBklightTimes[selectBklightTimesVector] ) {
+    maintenanceLabels1[1].text = "always on";
   } else {
-    sprintf(charBuf , "%d ppm" , outcontrols[outcontrolsvector] );
-    maintenanceLabels1[selected].text = charBuf;
+    sprintf(charBuf , "%d min pff" , selectSleepTimes[selectBklightTimesVector] );
+    maintenanceLabels1[1].text = charBuf;
   }
+
+  if ( 9999 == selectAlermPpms[selectAlermPpmVector] ) {
+    maintenanceLabels1[2].text = "always on";
+  } else {
+    dtostrf(selectAlermPpms[selectAlermPpmVector], 4, 1, charBuf );
+    strcat(charBuf, " ppm");
+    maintenanceLabels1[2].text = charBuf;
+  }
+
+  if ( 9999 == selectOutcontrols[selectOutcontrolsVector] ) {
+    maintenanceLabels1[3].text = "always on";
+  } else {
+    dtostrf(selectOutcontrols[selectOutcontrolsVector], 4, 1, charBuf );
+    strcat(charBuf, " ppm");
+    maintenanceLabels1[3].text = charBuf;
+  }
+
+
+
   while (1)
   {
 
@@ -692,57 +738,72 @@ int maintenanceSelect1() {
       setkeypushed = 0;
       switch (selected) {
         case 0:  //OFFTIMER
-          sleeptimesvector++;
-          if ( SLEEPTIMENUM <= sleeptimesvector )
-            sleeptimesvector = 0;
-          sleeptime = sleeptimes[sleeptimesvector] * 60;
-          if ( -1 == sleeptimes[sleeptimesvector] ) {
+          selectSleepTimesVector++;
+          if ( SELECTSLEEPTIMENUM <= selectSleepTimesVector )
+            selectSleepTimesVector = 0;
+          sleeptime = selectSleepTimes[selectSleepTimesVector] * 60;
+          if ( -1 == selectSleepTimes[selectSleepTimesVector] ) {
             maintenanceLabels1[selected].text = "always on";
           } else {
-            sprintf(charBuf , "%d" , sleeptimes[sleeptimesvector] );
+            sprintf(charBuf , "%d min off" , selectSleepTimes[selectSleepTimesVector] );
             maintenanceLabels1[selected].text = charBuf;
           }
           selectLabelText(maintenanceLabels1[selected]);
           break;
-        case 1:
-          outcontrolsvector++;
-          if ( OUTCONTROLSNUM <= outcontrolsvector )
-            outcontrolsvector = 0;
-          PtargetPpm = outcontrols[outcontrolsvector];
-          if ( 9999 == outcontrols[outcontrolsvector] ) {
+        case 1:  // BackLight OFFTIMER
+          selectBklightTimesVector++;
+          if ( SELECTBKLIGHTTIMENUM <= selectBklightTimesVector )
+            selectBklightTimesVector = 0;
+          sleeptime = selectBklightTimes[selectBklightTimesVector] * 60;
+          if ( -1 == selectBklightTimes[selectBklightTimesVector] ) {
             maintenanceLabels1[selected].text = "always on";
           } else {
-            sprintf(charBuf , "%d ppm" , outcontrols[outcontrolsvector] );
+            sprintf(charBuf , "%d min off" , selectBklightTimes[selectBklightTimesVector] );
             maintenanceLabels1[selected].text = charBuf;
           }
           selectLabelText(maintenanceLabels1[selected]);
           break;
-        case 2:
-          outcontrolsvector++;
-          if ( OUTCONTROLSNUM <= outcontrolsvector )
-            outcontrolsvector = 0;
-          PtargetPpm = outcontrols[outcontrolsvector];
-          if ( 9999 == outcontrols[outcontrolsvector] ) {
-            maintenanceLabels1[selected].text = "always on";
+        case 2:   // Alerm
+          selectAlermPpmVector++;
+          if ( SELECTALERMPPMNUM <= selectAlermPpmVector )
+            selectAlermPpmVector = 0;
+          if ( 9999 == selectAlermPpms[selectAlermPpmVector] ) {
+            maintenanceLabels1[selected].text = "NO ALERM";
           } else {
-            sprintf(charBuf , "%d ppm" , outcontrols[outcontrolsvector] );
+            dtostrf(selectAlermPpms[selectAlermPpmVector], 4, 1, charBuf );
+            strcat(charBuf, " ppm");
             maintenanceLabels1[selected].text = charBuf;
           }
           selectLabelText(maintenanceLabels1[selected]);
           break;
         case 3:
+          selectOutcontrolsVector++;
+          if ( SELECTOUTCONTROLSNUM <= selectOutcontrolsVector )
+            selectOutcontrolsVector = 0;
+          PtargetPpm = selectOutcontrols[selectOutcontrolsVector];
+          if ( 9999 == selectOutcontrols[selectOutcontrolsVector] ) {
+            maintenanceLabels1[selected].text = "always on";
+          } else {
+            dtostrf(selectOutcontrols[selectOutcontrolsVector], 4, 1, charBuf );
+            strcat(charBuf, " ppm");
+            maintenanceLabels1[selected].text = charBuf;
+          }
           selectLabelText(maintenanceLabels1[selected]);
-          mode = "monitordisp";
-          return (0);
           break;
         case 4:
           selectLabelText(maintenanceLabels1[selected]);
-          mode = "graph";
+          modeDisp = "monitordisp";
           return (0);
           break;
         case 5:
           selectLabelText(maintenanceLabels1[selected]);
-          mode = "measure";
+          modeDisp = "graph";
+          return (0);
+          break;
+        case 6:
+          selectLabelText(maintenanceLabels1[selected]);
+          modeDisp = "measure";
+          storeData();
           return (0);
           break;
 
@@ -816,13 +877,10 @@ void sensorSet() {
   offset = offset / 5;
 
   Serial.println(cmds[1]);
-
-  File f = SPIFFS.open(settings, "w");
-  f.println(sensorModeStr);
-  f.println(cmds[1]);
-  f.println(offset);
-  f.close();
-
+  storeStrSensorSensitivity=cmds[1];
+  storeStrSensorZeroVOffset=offset;
+  storeData();
+  
 
   // --------------------24 H wait message display out
 #ifdef JLX12864G
@@ -850,6 +908,26 @@ void handleNotFound() {
   message += server.uri();
   server.send(404, "text/plain", message);
 }
+
+void storeData() {
+    File f = SPIFFS.open(settings, "w");
+    f.println(storeStrSensorSensitivity);
+    f.println(storeStrSensorZeroVOffset);
+    storeStrSelectSleepTimesVector =  String(  selectSleepTimesVector);
+    storeStrSelectBklightTimesVector = String( selectBklightTimesVector);
+    storeStrSelectOutcontrolsVector = String(  selectOutcontrolsVector);
+    storeStrSelectAlermPpmVector = String(selectAlermPpmVector);
+    f.println(storeStrSelectSleepTimesVector);
+    f.println(storeStrSelectBklightTimesVector);
+    f.println(storeStrSelectOutcontrolsVector);
+    f.println(storeStrSelectAlermPpmVector);
+
+    f.println(storeSensorModeStr);
+    f.close();
+
+
+}
+
 //-----------------------------------------------------------------------------------------
 void setup(void) {
 
@@ -907,29 +985,43 @@ void setup(void) {
     Serial.println("open error");
   }
 
-  sensorModeStr = fp.readStringUntil('\n'); // always "OZON"
-  sensorSensitivityStr = fp.readStringUntil('\n'); // always "clientMode"
-  sensorZeroVOffsetStr = fp.readStringUntil('\n');
+
+
+
+
+  storeStrSensorSensitivity = fp.readStringUntil('\n');
+  storeStrSensorZeroVOffset = fp.readStringUntil('\n');
+  storeStrSelectSleepTimesVector = fp.readStringUntil('\n');;
+  storeStrSelectBklightTimesVector = fp.readStringUntil('\n');;
+  storeStrSelectOutcontrolsVector = fp.readStringUntil('\n');;
+  storeStrSelectAlermPpmVector = fp.readStringUntil('\n');;
+  storeSensorModeStr = fp.readStringUntil('\n'); // always "ozone"
   Serial.print("sensorSensitivity:");
-  Serial.println(sensorSensitivityStr);
+  Serial.println(storeStrSensorSensitivity);
   Serial.print("sensorZeroVOffset:");
-  Serial.println(sensorZeroVOffsetStr);
+  Serial.println(storeStrSensorZeroVOffset);
   fp.close();
-  sensorModeStr.trim();
-  sensorSensitivityStr.trim();
-  sensorZeroVOffsetStr.trim();
-  if ( 0 == sensorModeStr.compareTo("ozon") ) {
+  storeStrSensorSensitivity.trim();
+  storeStrSensorZeroVOffset.trim();
+  storeStrSelectSleepTimesVector.trim();
+  storeStrSelectBklightTimesVector.trim();
+  storeStrSelectOutcontrolsVector.trim();
+  storeStrSelectAlermPpmVector.trim();
+  storeSensorModeStr.trim();
+  if ( 0 == storeSensorModeStr.compareTo("ozone") ) {
+    selectSleepTimesVector =  (storeStrSelectSleepTimesVector.toInt());
+    selectBklightTimesVector =  (storeStrSelectBklightTimesVector.toInt());
+    selectOutcontrolsVector =  (storeStrSelectOutcontrolsVector.toInt());
+    selectAlermPpmVector =  (storeStrSelectAlermPpmVector.toInt());
+
+
   } else {
     Serial.print("SPIFFS data seems clash. Default load...");
-    sensorModeStr = "ozon";
-    sensorSensitivityStr = defaultSensitivity;
-    sensorZeroVOffsetStr = defaultZeroVOffset;
+    storeSensorModeStr = "ozone";
+    storeStrSensorSensitivity = defaultSensitivity;
+    storeStrSensorZeroVOffset = defaultZeroVOffset;
     essKey = defaultEssKey;
-    File f = SPIFFS.open(settings, "w");
-    f.println(sensorModeStr);
-    f.println(defaultSensitivity);
-    f.println(defaultZeroVOffset);
-    f.close();
+    storeData();
   }
   if ( 1 == WiFiSet ) {
     Serial.println("WiFiMode is ON");
@@ -986,6 +1078,17 @@ void setup(void) {
     APP_CPU_NUM
   );
 
+  // command interpriter thread make
+  xTaskCreateUniversal(
+    task3,
+    "task3",
+    8192,
+    NULL,
+    1,
+    NULL,
+    APP_CPU_NUM
+  );
+
   //switch interrupt
   attachInterrupt(UPKEY, keychange, CHANGE);
   attachInterrupt(DOWNKEY, keychange, CHANGE);
@@ -994,9 +1097,9 @@ void setup(void) {
   Serial.println("interrupt seted");
 
   // sleep timer init
-  sleeptime = sleeptimes[sleeptimesvector] * 60;
+  sleeptime = selectSleepTimes[selectSleepTimesVector] * 60;
   // P control value init
-  PtargetPpm = outcontrols[outcontrolsvector];
+  PtargetPpm = selectOutcontrols[selectOutcontrolsVector];
 
 
 
@@ -1016,9 +1119,9 @@ void setup(void) {
   Serial.print("  " );
   Serial.print("multiple");
   Serial.print("  " );
-  Serial.print("sensorSensitivityStr" );
+  Serial.print("storeStrSensorSensitivity" );
   Serial.print("  " );
-  Serial.print("sensorZeroVOffsetStr" );
+  Serial.print("storeStrSensorZeroVOffset" );
   Serial.print("  ");
   //   Serial.print("offset=");
   Serial.print("gasValue-refValue");
@@ -1047,13 +1150,13 @@ void setup(void) {
 
 
 void loop(void) {
-  // Handle incoming connections
-  server.handleClient();
+  // Web server handler ,  key switch handler
 
+  server.handleClient();
   if ( 1 == setkeypushed ) {
     setkeypushed = 0;
-    mode = "setup";
-    Serial.println("mode=setup");
+    modeDisp = "setup";
+    Serial.println("modeDisp=setup");
     maintenanceSelect1();
   }
 
@@ -1063,7 +1166,7 @@ void loop(void) {
 
 
 //===============================================================================================
-
+// gas measurement loop
 
 void task1(void *pvParameters) {
   char charBuf[10];
@@ -1086,8 +1189,8 @@ void task1(void *pvParameters) {
 
     int diffValue = gasValue - refValue;
     // rel measurement end
-    float offset   =  sensorZeroVOffsetStr.toFloat();
-    float Sensitivity = sensorSensitivityStr.toFloat();
+    float offset   =  storeStrSensorZeroVOffset.toFloat();
+    float Sensitivity = storeStrSensorSensitivity.toFloat();
     float multiple =  0.81 / (Sensitivity * 510 * 1000 / 1000 / 1000);
     // Serial.println("looping...");
 
@@ -1154,50 +1257,53 @@ void task1(void *pvParameters) {
 
 
 
-    Serial.print(ppmsumavg);
-    Serial.print("  " );
-    int ppmsumavg10int ;
-    ppmsumavg10int = ppmsumavg10 * 100;
-    Serial.print(ppmsumavg10int);
-    Serial.print("  " );
-    Serial.print(ppm);
-    Serial.print("  " );
-    Serial.print(ppmmin);
-    Serial.print("  " );
-    Serial.print(ppmmax);
-    Serial.print("  " );
-    Serial.print(oldtemp);
-    Serial.print("  " );
-    Serial.print(offset);
-    Serial.print("  " );
-    Serial.print(multiple);
-    Serial.print("  " );
-    Serial.print( sensorSensitivityStr );
-    Serial.print("  " );
-    Serial.print( sensorZeroVOffsetStr );
-    Serial.print("  ");
-    //   Serial.print("offset=");
-    Serial.print(gasValue - refValue);
-    Serial.print("  ");
-    //   Serial.print("gas=");
-    Serial.print(gasValue);
-    Serial.print("  ");
-    //   Serial.print("ref=");
-    Serial.print(refValue);
-    Serial.print("  ");
-    //   Serial.print("batt=");
-    Serial.print(battValue);
-    Serial.print("  ");
-    //   Serial.print("vin=");
-    Serial.print(vinValue);
-    Serial.print("  ");
-    //   Serial.print("temp=");
-    Serial.print(oldtemp);
-    Serial.print("  " );
-    Serial.print(Pstatus);
-    Serial.println();
-    // Serial.println(checkattr);
 
+    if ( 0 == modeSerial.compareTo("measure")) {
+
+      Serial.print(ppmsumavg);
+      Serial.print("  " );
+      int ppmsumavg10int ;
+      ppmsumavg10int = ppmsumavg10 * 100;
+      Serial.print(ppmsumavg10int);
+      Serial.print("  " );
+      Serial.print(ppm);
+      Serial.print("  " );
+      Serial.print(ppmmin);
+      Serial.print("  " );
+      Serial.print(ppmmax);
+      Serial.print("  " );
+      Serial.print(oldtemp);
+      Serial.print("  " );
+      Serial.print(offset);
+      Serial.print("  " );
+      Serial.print(multiple);
+      Serial.print("  " );
+      Serial.print( storeStrSensorSensitivity );
+      Serial.print("  " );
+      Serial.print( storeStrSensorZeroVOffset );
+      Serial.print("  ");
+      //   Serial.print("offset=");
+      Serial.print(gasValue - refValue);
+      Serial.print("  ");
+      //   Serial.print("gas=");
+      Serial.print(gasValue);
+      Serial.print("  ");
+      //   Serial.print("ref=");
+      Serial.print(refValue);
+      Serial.print("  ");
+      //   Serial.print("batt=");
+      Serial.print(battValue);
+      Serial.print("  ");
+      //   Serial.print("vin=");
+      Serial.print(vinValue);
+      Serial.print("  ");
+      //   Serial.print("temp=");
+      Serial.print(oldtemp);
+      Serial.print("  " );
+      Serial.print(Pstatus);
+      Serial.println();
+      // Serial.println(checkattr);
+    }
 
     //  float ppm = (600-sensorValue1)/12;
     if ( ppmsumavg < 0 ) {
@@ -1210,7 +1316,7 @@ void task1(void *pvParameters) {
     //------------------------------------------------------計測値をLCDに表示---------
 
 
-    if ( 0 == mode.compareTo("measure")) {
+    if ( 0 == modeDisp.compareTo("measure")) {
       dtostrf(ppmsumavg, 4, 1, charBuf);
       //  charBuf=" 123";
       //  buffer.toCharArray(charBuf, 50);
@@ -1234,7 +1340,7 @@ void task1(void *pvParameters) {
       labelText(showPPM);
       labelText(unitPPM);
 
-      if ( 40 ==  sensorSensitivityStr.toInt() )
+      if ( 40 ==  storeStrSensorSensitivity.toInt() )
       {
         //     LCD_Print_Str(5,49,"",1,2);
       } else {
@@ -1243,7 +1349,7 @@ void task1(void *pvParameters) {
 #endif
     }
     // -------------------------------------------------------- monitor 値をLCDに表示
-    if ( 0 == mode.compareTo("monitordisp")) {
+    if ( 0 == modeDisp.compareTo("monitordisp")) {
       display.fillScreen(TFT_WHITE);
       dtostrf(ppmsumavg, 5, 2, charBuf);
       monitorPPMavg.text = charBuf;
@@ -1273,10 +1379,10 @@ void task1(void *pvParameters) {
       monitormultiple.text = charBuf;
       labelText(monitormultiple);
       labelText(monitormultipletitle);
-      monitorSensivityStr.text = sensorSensitivityStr;
+      monitorSensivityStr.text = storeStrSensorSensitivity;
       labelText(monitorSensivityStr);
       labelText(monitorSensivityStrtitle);
-      monitorOffsetStr.text = sensorZeroVOffsetStr;
+      monitorOffsetStr.text = storeStrSensorZeroVOffset;
       labelText(monitorOffsetStr);
       labelText(monitorOffsetStrtitle);
       sprintf(charBuf, "%d", gasValue - refValue);
@@ -1308,7 +1414,7 @@ void task1(void *pvParameters) {
     }
 
     // -------------------------------------------------------- monitor 値をグラフ表示
-    if ( 0 == mode.compareTo("graph")) {
+    if ( 0 == modeDisp.compareTo("graph")) {
       for ( int i = 0; i < 127 ; i++ ) {
         graph[i + 1] = graph[i];
       }
@@ -1374,7 +1480,7 @@ void task1(void *pvParameters) {
 
 //===============================================================================================
 
-
+// power control loop
 void task2(void *pvParameters) {
   while (1) {
 
@@ -1400,5 +1506,26 @@ void task2(void *pvParameters) {
 
     counter++;
     sleepcounter++;
+  }
+}
+
+//=============================================================================================
+void task3(void *pvParameters) {
+  while (1) {
+    while (Serial.available() == 0) {}     //wait for data available
+    String teststr = Serial.readString();  //read until timeout
+    teststr.trim();                        // remove any \r \n whitespace at the end of the String
+    if (teststr == "") {
+      while (teststr != "exit" ) {
+        modeSerial = "shell";
+        Serial.print("> ");
+        while (Serial.available() == 0) {}
+        teststr = Serial.readString();
+        teststr.trim();
+        Serial.println(teststr);
+
+
+      }
+    }
   }
 }
