@@ -1,6 +1,12 @@
 #include <LovyanGFX.hpp>
 #include <SPI.h>
 
+// Captive Portal
+#include <AsyncTCP.h>  //https://github.com/me-no-dev/AsyncTCP using the latest dev version from @me-no-dev
+#include <DNSServer.h>
+#include "ESPAsyncWebServer.h"  //https://github.com/me-no-dev/ESPAsyncWebServer using the latest dev version from @me-no-dev
+#include <esp_wifi.h>     //Used for mpdu_rx_disable android workaround
+
 //#define ILI9341  // ILI9341 use PIN19
 #define JLX12864G  // 128 dot x 64 dot B/W with backlight LCD
 
@@ -13,11 +19,11 @@
 
 
 
-#include <WiFi.h>
-#include <WiFiClient.h>
-#include <WebServer.h>
+// #include <WiFi.h>
+//#include <WiFiClient.h>
+// #include <WebServer.h>
 #include <SPIFFS.h>
-#include <ESPmDNS.h>
+
 
 #include "DHTesp.h"
 #define DHTPIN 32
@@ -32,7 +38,7 @@ DHTesp dht;
 #define BATT_MONITOR_PIN A7  // GPIO35 1/2 divider voltage
 #define SWDETECT_PIN 25  // 
 #define POWERDOWN_PIN 4  // Lo -> PowerDown
-#define ConfigSetPin 14 // SW2 push with boot : AP mode on
+#define WiFiSetPin 14 // SW2 push with boot : AP mode on
 #define UPKEY 13
 #define DOWNKEY 0
 #define SETKEY 14
@@ -41,7 +47,6 @@ DHTesp dht;
 
 int timeOfSleep;
 int timeOfBklight;
-float ppmsumavg;
 
 #include "SPI.h"
 
@@ -78,10 +83,9 @@ struct LABEL {
   GFXfont font;
 };
 const char* settings = "/ozon_settings.txt";
-const char* wifisettings = "/wifi_settings.txt";
 // AP mode WiFi Setting
 const char* defaultWifiMode = "APMode";
-const char* defaultSsid = "OZONE";
+const char* defaultSsid = "OZON";
 const char* defaultSensitivity = "-46";
 const char* defaultZeroVOffset = "-43.21";
 const char* defaultEssKey = "11111111";
@@ -117,8 +121,7 @@ int vinValue, battValue;
 int gasValue, refValue;
 
 
-int WiFiSet = 1;  // 0 ... no WiFi 1... WiFi ON
-int ConfigSet = 0;  // 0 ... normal operation / 1 ... Configration Setting
+int WiFiSet = 0;  // 0 ... normal operation / 1 ... WiFi Setting Mode
 
 RTC_DATA_ATTR int bootCount = 0;
 // ILI9341
@@ -816,85 +819,27 @@ int maintenanceSelect1() {
     }
   }
 }
-WebServer server(80);
+AsyncWebServer server(80);
 
 void handleRoot() {
   char temp[500];
-
-  if ( 1 == ConfigSet ) { 
   snprintf ( temp, 500,
              "<html>\
 <head>\
-<title>OZONE Sensor Setting</title>\
+<title>OZON Sensor Setting</title>\
 <style>\
 body { background-color: #cccccc; font-family: Arial, Helvetica, Sans-Serif; Color: #000088; }\
 </style>\
 </head>\
 <body>\
-<h1>Configration</h1>\
+<h1>OZON Sensor Setting</h1>\
 <br> \
 <hr> \
-<a href=\"\/wifiInput\">WiFi settings</a> \
-<hr> \
-<a href=\"\/setInput\">Sensor settings</a> \
+<a href=\"\/setInput\">settings</a> \
 </body>\
 </html>");
-  } else {
-  snprintf ( temp, 500,
-             "<html>\
-<head>\
-<meta http-equiv=refresh content=10>\
-<title>OZONE</title>\
-<style>\
-body { background-color: #cccccc; font-family: Arial, Helvetica, Sans-Serif; Color: #000088; }\
-</style>\
-</head>\
-<body>\
-<h1>%10.1f ppm</h1>\
-</body>\
-</html>",ppmsumavg);
-
-    
-  }
   server.send ( 200, "text/html", temp );
 }
-void wifiInput() {
-  String html = "";
-  html += "<h1>WiFi Settings</h1>";
-  html += "<form method='post' action='/wifiSet'>";
-  html += "  <br>";
-  html += "  <input type='text' name='essid' >ESSID<br>";
-  html += "  <input type='text' name='key' >KEY(pass)<br>";
-  html += "  <br>";
-  html += "  <input type='submit'><br>";
-  html += "</form>";
-  server.send(200, "text/html", html);
-}
-
-void wifiSet() {
-  String wifiMode = "clientMode";
-  String setSsid = server.arg("essid");
-  String setKey = server.arg("key");
-  String setChannel = server.arg("0");
-
-  File f = SPIFFS.open(wifisettings, "w");
-  f.println(wifiMode);
-  f.println(setSsid);
-  f.println(setKey);
-  f.println(channel);
-  f.close();
-
-  String html = "";
-  html += "<h1>WiFi Settings</h1>";
-  html += "ESSID:" + setSsid + "<br>";
-  html += "key(pass):" + setKey + "<br>";
-  html += "<hr>";
-  html += "<h1>Please Reset!</h1>";
-
-  server.send(200, "text/html", html);
-}
-
-
 
 void setInput() {
   String html = "";
@@ -1026,7 +971,7 @@ void setup(void) {
   Serial.println("");
   Serial.println("ESXAR Program Start");
   delay(100);
-  pinMode ( ConfigSetPin, INPUT_PULLUP );
+  pinMode ( WiFiSetPin, INPUT_PULLUP );
   digitalWrite( BeepPin, LOW );
   pinMode ( BeepPin, INPUT_PULLDOWN );
 
@@ -1036,7 +981,7 @@ void setup(void) {
   pinMode(UPKEY, INPUT_PULLUP);
   pinMode(DOWNKEY, INPUT_PULLUP);
   pinMode(SETKEY, INPUT_PULLUP);
-  pinMode(POWERDOWN_PIN, INPUT);
+
 
   display.init();
 #ifdef ILI9341
@@ -1055,7 +1000,7 @@ void setup(void) {
   display.setTextSize((std::max(display.width(), display.height()) + 255) >> 8);
   display.fillScreen(TFT_WHITE);
 
-  ConfigSet = digitalRead(ConfigSetPin);
+  WiFiSet = digitalRead(WiFiSetPin);
   //   init filesystem
   bool res = SPIFFS.begin(true); // FORMAT_SPIFFS_IF_FAILED
   if (!res) {
@@ -1065,10 +1010,10 @@ void setup(void) {
   int i;
   delay(1000);
   // settings read
-  if ((0 == digitalRead(ConfigSetPin)) && (0 == ConfigSet)) {
-    ConfigSet = 1; // Setting mode
+  if ((0 == digitalRead(WiFiSetPin)) && (0 == WiFiSet)) {
+    WiFiSet = 1; // Setting mode
   } else {
-    ConfigSet = 0;
+    WiFiSet = 0;
   }
   // set file read
   File fp = SPIFFS.open(settings, "r");
@@ -1127,103 +1072,18 @@ void setup(void) {
 
   if ( 1 == WiFiSet ) {
     Serial.println("WiFiMode is ON");
+    //----------WiFi access point---------
+    Serial.println();
+    // LCD_Pattern(0, 0, Icon1616WiFi, 0, 1);
 
-    
-    
-  // set file read
-  File fp = SPIFFS.open(wifisettings, "r");
-  if (!fp) {
-      Serial.println("open error");
-  }
-  wifiMode = fp.readStringUntil('\n'); // always "clientMode"
-  ssid = fp.readStringUntil('\n');
-  essKey = fp.readStringUntil('\n');
-  channel = fp.readStringUntil('\n');  // no use
-  Serial.print("wifiMode:");
-  Serial.println(wifiMode);
-  Serial.print("ssid:");
-  Serial.println(ssid);
-  Serial.print("essKey:");
-  Serial.println(essKey);
-  fp.close();
-  wifiMode.trim();
-  ssid.trim();
-  essKey.trim();
-  channel.trim();
-  if ( 0 == wifiMode.compareTo("clientMode") ){
-  } else if ( 0 == wifiMode.compareTo("APMode") ) {
-  } else {
-       Serial.print("SPIFFS data seems clash. Default load...");
-       wifiMode=defaultWifiMode;
-       ssid=defaultSsid;
-       essKey=defaultEssKey;
-       File f = SPIFFS.open(settings, "w");
-       f.println(wifiMode);
-       f.println(ssid);
-       f.println(essKey);
-       f.close();
-  }
-  if ( 0 == ConfigSet ) { 
-    Serial.println("WiFiMode is ON");
-    //----------WiFi access point---------
-    Serial.println();
-    Serial.print("Configuring access point...");
-  /* You can remove the password parameter if you want the AP to be open. */
-    if ( 0 == wifiMode.compareTo("APMode") ){
-      WiFi.softAP(ssid.c_str(), essKey.c_str());
-      IPAddress myIP = WiFi.softAPIP();
-      Serial.print("AP IP address: ");
-      Serial.println(myIP);
-    }
-    //----- WiFi client --------------
-    if ( 0 == wifiMode.compareTo("clientMode") ){
-      WiFi.begin(ssid.c_str(), essKey.c_str());
-      Serial.println("");
-    // Wait for connection
-      while (WiFi.status() != WL_CONNECTED) {
-        delay(500);
-        Serial.print(".");
-      }
-      Serial.println("");
-      Serial.print("Connected to ");
-      Serial.println(ssid);
-      Serial.print("IP address: ");
-      Serial.println(WiFi.localIP());
-    }
-  }
-  if (1 == ConfigSet) { 
-    Serial.println("WiFiMode default boot");
-    //----------WiFi access point---------
-    Serial.println();
-    Serial.print("Configuring access point...");
-  /* You can remove the password parameter if you want the AP to be open. */
-    WiFi.softAP(defaultSsid, defaultEssKey);
+
+    ssid = defaultSsid;
+    essKey = defaultEssKey;
+    WiFi.softAP(ssid.c_str(), essKey.c_str());
     IPAddress myIP = WiFi.softAPIP();
     Serial.print("AP IP address: ");
     Serial.println(myIP);
-  }
-    
-    
-    
-    
-    
-
-
-
-
-
-    if (!MDNS.begin("ozone")) {   // "ozone.local"
-      Serial.println("Error setting up MDNS responder!");
-      while (1) {
-        delay(1000);
-      }
-    }
-    Serial.println("mDNS responder started");
-
-    
     server.on("/",     handleRoot);
-    server.on("/wifiSet",  wifiSet);
-    server.on("/wifiInput",  wifiInput);
     server.on("/setInput",  setInput);
     server.on("/sensorSet", sensorSetbyHTML);
     server.onNotFound(handleNotFound);
@@ -1399,7 +1259,7 @@ void task1(void *pvParameters) {
     for ( int i = 0 ; i < 10; i++ ) {
       ppmsumavg10 += ppms10[i];
     }
-    ppmsumavg = ppmsum / samplenum;
+    float ppmsumavg = ppmsum / samplenum;
     ppmsumavg10 = ppmsumavg10 / 10;
 
 
@@ -1647,7 +1507,7 @@ void task1(void *pvParameters) {
       LCD_Pattern(111, 0, Icon1616ACIN, 0, 1);
     } else if ( 1500 < battValue ) {
       LCD_Pattern(111, 0, Icon1616BatteryFull, 0, 1);
-    } else if ( 1300 <  battValue ) {
+    } else if ( 1300 < battValue ) {
       LCD_Pattern(111, 0, Icon1616Battery3, 0, 1);
     } else if ( 1200 < battValue ) {
       LCD_Pattern(111, 0, Icon1616Battery2, 0, 1);
@@ -1657,7 +1517,7 @@ void task1(void *pvParameters) {
       LCD_Pattern(111, 0, Icon1616BatteryEmpty, 0, 1);
     }
     // ---------------------------------------------------------Show WiFi Icon
-    if ( 1 == ConfigSet ) {
+    if ( 1 == WiFiSet ) {
 
       LCD_Pattern(0, 0, Icon1616WiFi, 0, 1);
     }
@@ -1682,15 +1542,12 @@ void task2(void *pvParameters) {
 
     //  static int 1=0;
     if ( timeOfSleep == sleepcounter) {
-    //if ( 10 == sleepcounter) {
       Serial.print("timeout. Powerdown...");
-    //  digitalWrite(TFT_BACKLIGHT_PIN, LOW); // OFF
+      digitalWrite(TFT_BACKLIGHT_PIN, LOW); // OFF
       delay(100);
       pinMode(POWERDOWN_PIN, OUTPUT);
-      digitalWrite(POWERDOWN_PIN, HIGH);
+      digitalWrite(POWERDOWN_PIN, LOW);
       delay(1000);
-      pinMode(POWERDOWN_PIN, INPUT);
-      Serial.println("Done");
     }
     
 
