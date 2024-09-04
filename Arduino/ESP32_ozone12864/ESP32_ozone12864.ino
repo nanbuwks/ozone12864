@@ -85,10 +85,15 @@ const char* defaultSsid = "OZONE";
 const char* defaultSensitivity = "-46";
 const char* defaultZeroVOffset = "-43.21";
 const char* defaultEssKey = "11111111";
+
 String wifiMode;
 String ssid;
 String essKey;
 String channel;
+String ipaddress;
+String wifiConnectStatus = "OFF";
+
+
 String storeSensorModeStr;
 String storeStrSensorSensitivity;
 String storeStrSensorZeroVOffset;
@@ -172,22 +177,23 @@ LABEL unitPPM = {90, 20, 38, 30, FGCOLOR, BGCOLOR, "ppm", 'L', 1, FreeSansBold9p
   JLABEL md124 = {50, 50, 80, 14,  TFT_WHITE, TFT_BLACK, "RETURN", 1, lgfxJapanGothicP_8};
 */
 
-LABEL md120 = {50, 8, 60, 7,  TFT_WHITE, TFT_BLACK, "         ", 'C' , 1, TomThumb};
-LABEL md121 = {50, 16, 60, 7,  TFT_WHITE, TFT_BLACK, "         ", 'C' , 1, TomThumb};
-LABEL md122 = {50, 24, 60, 7,  TFT_WHITE, TFT_BLACK, "         ", 'C' , 1, TomThumb};
-LABEL md123 = {50, 32, 60, 7,  TFT_WHITE, TFT_BLACK, "         ", 'C' , 1, TomThumb};
-LABEL md124 = {20, 40, 90, 7,  TFT_WHITE, TFT_BLACK, "MONITOR", 'C' , 1, TomThumb};
-LABEL md125 = {20, 48, 90, 7,  TFT_WHITE, TFT_BLACK, "GRAPH", 'C' , 1, TomThumb};
-LABEL md126 = {20, 56, 90, 7,  TFT_WHITE, TFT_BLACK, "RETURN", 'C', 1, TomThumb};
+LABEL md120 = {50, 0, 60, 7,  TFT_WHITE, TFT_BLACK, "         ", 'C' , 1, TomThumb};
+LABEL md121 = {50, 8, 60, 7,  TFT_WHITE, TFT_BLACK, "         ", 'C' , 1, TomThumb};
+LABEL md122 = {50, 16, 60, 7,  TFT_WHITE, TFT_BLACK, "         ", 'C' , 1, TomThumb};
+LABEL md123 = {50, 24, 60, 7,  TFT_WHITE, TFT_BLACK, "         ", 'C' , 1, TomThumb};
+LABEL md124 = {20, 32, 90, 7,  TFT_WHITE, TFT_BLACK, "MONITOR", 'C' , 1, TomThumb};
+LABEL md125 = {20, 40, 90, 7,  TFT_WHITE, TFT_BLACK, "GRAPH", 'C' , 1, TomThumb};
+LABEL md126 = {20, 48, 90, 7,  TFT_WHITE, TFT_BLACK, "NET", 'C', 1, TomThumb};
+LABEL md127 = {20, 56, 90, 7,  TFT_WHITE, TFT_BLACK, "RETURN", 'C', 1, TomThumb};
 
-LABEL md110 = {10, 9, 40, 7,  TFT_BLACK, TFT_WHITE,  "BATTERY POWER", 'R' , 1, TomThumb};
-LABEL md111 = {10, 17, 40, 7,  TFT_BLACK, TFT_WHITE, "BACKLIGHT OFF", 'R' , 1, TomThumb};
-LABEL md112 = {10, 25, 40, 7,  TFT_BLACK, TFT_WHITE, "ALERM", 'R' , 1, TomThumb};
-LABEL md113 = {10, 33, 40, 7,  TFT_BLACK, TFT_WHITE, "CONTROL", 'R', 1, TomThumb};
+LABEL md110 = {10, 1, 40, 7,  TFT_BLACK, TFT_WHITE,  "BATTERY POWER", 'R' , 1, TomThumb};
+LABEL md111 = {10, 9, 40, 7,  TFT_BLACK, TFT_WHITE, "BACKLIGHT OFF", 'R' , 1, TomThumb};
+LABEL md112 = {10, 17, 40, 7,  TFT_BLACK, TFT_WHITE, "ALERM", 'R' , 1, TomThumb};
+LABEL md113 = {10, 25, 40, 7,  TFT_BLACK, TFT_WHITE, "CONTROL", 'R', 1, TomThumb};
 
-#define MAINTENANCELABELSNUM 7
+#define MAINTENANCELABELSNUM 8
 
-LABEL maintenanceLabels1[ MAINTENANCELABELSNUM] = {  md120, md121, md122, md123 , md124, md125, md126};
+LABEL maintenanceLabels1[ MAINTENANCELABELSNUM] = {  md120, md121, md122, md123 , md124, md125, md126 , md127};
 
 
 LABEL monitorPPMsection       = {0, 0, 128,  1,  TFT_BLACK, TFT_WHITE, "", 'R' , 1, TomThumb};
@@ -266,6 +272,21 @@ int selectAlermPpmVector = 10; // means 10 ppm
 float selectAlermPpms[SELECTALERMPPMNUM] = {
   0.5, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 30, 40, 50, 9999
 };
+
+
+
+LABEL networkDispLabel      = {40, 4,  48, 8,  TFT_BLACK, TFT_WHITE, "NETWORK", 'R' , 1, DejaVu9  };
+LABEL networkModeLabel      = {0, 15,  34,8,  TFT_BLACK, TFT_WHITE, "MODE", 'R' , 1,  DejaVu9   };
+LABEL networkConnectLabel   = {0 ,25, 34, 8,  TFT_BLACK, TFT_WHITE, "LINK", 'R' , 1,   DejaVu9     };
+LABEL networkSsidLabel      = {0 ,35, 34, 8,  TFT_BLACK, TFT_WHITE, "SSID", 'R' , 1,   DejaVu9       };
+LABEL networkSskeyLabel     = {0, 45, 34, 8,  TFT_BLACK, TFT_WHITE, "SSKEY", 'R' , 1,    DejaVu9      };
+LABEL networkIPaddressLabel = {0, 55, 34, 8,  TFT_BLACK, TFT_WHITE, "IPADD.", 'R' , 1,   DejaVu9       };
+LABEL networkMode           = {34, 14, 96, 9,  TFT_WHITE, TFT_BLACK, "", 'C' , 1,   DejaVu9       };
+LABEL networkConnect        = {34, 24, 96, 9,  TFT_WHITE, TFT_BLACK, "", 'C' , 1,   DejaVu9       };
+LABEL networkSsid           = {34, 34, 96, 9,  TFT_WHITE, TFT_BLACK, "", 'C', 1,   DejaVu9       };
+LABEL networkSskey          = {34, 44, 96, 9,  TFT_WHITE, TFT_BLACK, "", 'C', 1,   DejaVu9       };
+LABEL networkIPaddress      = {34, 54, 96, 9,  TFT_WHITE, TFT_BLACK, "", 'C', 1,   DejaVu9       };
+
 
 // LABEL timeLabels[3]={ timeRemain,timeRUN,timeRETURN};
 //LABEL setLabels[2]={ setCONNECT,setRETURN};
@@ -807,6 +828,12 @@ int maintenanceSelect1() {
           break;
         case 6:
           selectLabelText(maintenanceLabels1[selected]);
+          modeDisp = "network";
+          storeData();
+          return (0);
+          break;
+        case 7:
+          selectLabelText(maintenanceLabels1[selected]);
           modeDisp = "measure";
           storeData();
           return (0);
@@ -1285,6 +1312,8 @@ void wiFiSet(){
     }
     if ( 0 == ConfigSet ) {
       Serial.println("WiFiMode is ON");
+      wifiConnectStatus = "trying...";
+
       Serial.println();
       if ( 0 == wifiMode.compareTo("APMode") ) {
         //----------if set APMode config, do WiFi access point mode---------
@@ -1298,9 +1327,13 @@ void wiFiSet(){
     }
     //----------if no set config, do WiFi access point mode---------
     if (1 == ConfigSet) {
+      wifiMode = "now setting";
+      wifiConnectStatus = "trying...";
       Serial.println("WiFiMode default boot");
       Serial.println();
-      apmode(defaultSsid,defaultEssKey);
+      ssid=defaultSsid;
+      essKey=defaultEssKey;
+      apmode(ssid,essKey);
     }
 
     if (!MDNS.begin("ozone")) {   // "ozone.local"
@@ -1336,6 +1369,10 @@ void clientmode( String ssid, String essKey ){
         Serial.println(ssid);
         Serial.print("IP address: ");
         Serial.println(WiFi.localIP());
+        ipaddress = WiFi.localIP().toString();
+        wifiConnectStatus = "connected";
+
+
 }
 void apmode( String ssid, String essKey ){
       Serial.print("Configuring access point...");
@@ -1343,6 +1380,8 @@ void apmode( String ssid, String essKey ){
       IPAddress myIP = WiFi.softAPIP();
       Serial.print("AP IP address: ");
       Serial.println(myIP);
+      ipaddress = myIP.toString();
+      wifiConnectStatus = "AP mode";
 }
 //===============================================================================================
 
@@ -1647,8 +1686,28 @@ void task1(void *pvParameters) {
       for ( int i = 0; i < 128 ; i++ ) {
         display.drawLine(127 - i, 24, 127 - i, 24 + graph[i], TFT_BLACK);
       }
+    }
+    if ( 0 == modeDisp.compareTo("network")) {
+      display.fillScreen(TFT_WHITE);
 
+      networkMode.text = wifiMode;
+      networkConnect.text = wifiConnectStatus;
+      networkSsid.text = ssid;
+      networkSskey.text = essKey;
+      networkIPaddress.text = ipaddress;
 
+      labelText(networkDispLabel);
+      labelText(networkModeLabel);
+      labelText(networkConnectLabel);
+      labelText(networkSsidLabel);
+      labelText(networkSskeyLabel);
+      labelText(networkIPaddressLabel);
+      labelText(networkMode);
+      labelText(networkConnect);
+      labelText(networkSsid);
+      labelText(networkSskey);
+      labelText(networkIPaddress);
+ 
     }
 
     //
